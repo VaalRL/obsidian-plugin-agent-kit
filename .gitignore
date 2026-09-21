@@ -1,0 +1,12 @@
+# Personal identity for the audit's funding checks
+skills/audit-obsidian-plugin/identity.json
+
+# Demo capture artefacts
+skills/audit-obsidian-plugin/scripts/demo-capture/Demo Vault/
+skills/audit-obsidian-plugin/scripts/demo-capture/obsidian-userdata/
+skills/audit-obsidian-plugin/scripts/demo-capture/frames*/
+skills/audit-obsidian-plugin/scripts/demo-capture/*.gif
+skills/audit-obsidian-plugin/scripts/demo-capture/*.png
+
+.DS_Store
+Thumbs.db

@@ -1,0 +1,7 @@
+{
+  "//": "Copy to identity.json and fill in. The audit substitutes these wherever the reference files show <AUTHOR_HANDLE> or <FUNDING_HANDLE>. Leave fundingHandle empty if you do not accept donations - the audit will then expect no fundingUrl in the manifest.",
+  "authorHandle": "your-github-username",
+  "authorUrl": "https://github.com/your-github-username",
+  "fundingHandle": "",
+  "fundingUrl": ""
+}
