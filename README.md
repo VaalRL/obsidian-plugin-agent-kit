@@ -3,6 +3,8 @@
 Rules and tooling for building Obsidian plugins with a coding agent, and getting them through
 the Community directory review.
 
+📖 **[Documentation site](https://vaalrl.github.io/obsidian-plugin-agent-kit/)**
+
 Two things live here:
 
 - **[`OBSIDIAN_PLUGIN_DEVELOPMENT_RULES.md`](OBSIDIAN_PLUGIN_DEVELOPMENT_RULES.md)** — the rules
@@ -95,6 +97,14 @@ no exception, nothing visible.** It looks exactly like a broken plugin.
 [`reference/demo-capture.md`](skills/audit-obsidian-plugin/reference/demo-capture.md) explains the
 fix and why the obvious version of it does not work.
 
+## Where this came from
+
+All of it was extracted from taking a real plugin — **[Note Wormhole](https://github.com/VaalRL/obsidian-note-wormhole)** —
+through the Community directory review. The rules are the ones that actually came up, the audit
+checks the things that were actually wrong, and the demo-capture scripts are the ones that
+produced that plugin's README GIFs. Note Wormhole is a working example of everything here
+applied.
+
 ## Status
 
 The rules and the audit reflect the Obsidian developer policies and submission requirements as of
@@ -102,6 +112,17 @@ The rules and the audit reflect the Obsidian developer policies and submission r
 Obsidian is iterating on plugin review, so check
 [docs.obsidian.md](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin) if something
 here looks stale — and please open an issue.
+
+Contributions welcome, particularly corrections: a rule that no longer holds is worse than no
+rule at all.
+
+## Author
+
+Built by [**VaalRL**](https://github.com/VaalRL).
+
+If it saved you a review cycle:
+
+<a href="https://www.buymeacoffee.com/whoami885" target="_blank" rel="noopener noreferrer"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="217" height="60"></a>
 
 ## License
 

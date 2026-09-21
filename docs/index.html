@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obsidian Plugin Agent Kit</title>
+<meta name="description" content="Rules and a Claude Code skill for building Obsidian plugins with a coding agent, and passing Community directory review.">
+<meta property="og:title" content="Obsidian Plugin Agent Kit">
+<meta property="og:description" content="Rules and a Claude Code skill for building Obsidian plugins with a coding agent, and passing Community directory review.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔌</text></svg>">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f6f7f9;
+    --bg-raised: #ffffff;
+    --text: #1f2328;
+    --text-muted: #59636e;
+    --border: #d8dee4;
+    --accent: #7c3aed;
+    --accent-soft: #f3eeff;
+    --warn-border: #d4a72c;
+    --warn-bg: #fff8e5;
+    --code-bg: #f6f7f9;
+    --shadow: 0 1px 3px rgba(0,0,0,.07), 0 8px 24px rgba(0,0,0,.05);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --bg-soft: #161b22;
+    --bg-raised: #161b22;
+    --text: #e6edf3;
+    --text-muted: #9198a1;
+    --border: #30363d;
+    --accent: #a78bfa;
+    --accent-soft: #1e1733;
+    --warn-border: #9e6a03;
+    --warn-bg: #241c07;
+    --code-bg: #161b22;
+    --shadow: 0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+          Roboto, Helvetica, Arial, sans-serif;
+    transition: background .18s ease, color .18s ease;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+
+  /* --- top bar --- */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .bar { display: flex; align-items: center; gap: 12px; height: 56px; }
+  .brand { font-weight: 650; letter-spacing: -.01em; margin-right: auto; }
+  .toggles { display: flex; gap: 8px; }
+  .toggle {
+    font: inherit; font-size: 13px; font-weight: 550;
+    color: var(--text); background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 11px; cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .toggle:hover { border-color: var(--accent); }
+  .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* --- hero --- */
+  .hero { padding: 64px 0 48px; }
+  h1 { font-size: clamp(2rem, 5.5vw, 3rem); line-height: 1.12; margin: 0 0 16px; letter-spacing: -.025em; }
+  .tagline { font-size: clamp(1.05rem, 2.4vw, 1.2rem); color: var(--text-muted); margin: 0 0 28px; max-width: 46rem; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 15px;
+    text-decoration: none; border: 1px solid var(--border);
+    color: var(--text); background: var(--bg-raised);
+    transition: transform .12s ease, border-color .15s ease;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: var(--accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  :root[data-theme="dark"] .btn-primary { color: #15101f; }
+
+  /* --- sections --- */
+  section { padding: 40px 0; border-top: 1px solid var(--border); }
+  h2 { font-size: 1.5rem; margin: 0 0 8px; letter-spacing: -.015em; }
+  h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+  .lead { color: var(--text-muted); margin: 0 0 24px; }
+  p { margin: 0 0 16px; }
+
+  .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; box-shadow: var(--shadow);
+  }
+  .card h3 { margin-top: 0; }
+  .card p { margin-bottom: 0; color: var(--text-muted); font-size: 15px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 8px 0 0; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); font-weight: 600; }
+  td:first-child { white-space: nowrap; font-weight: 550; }
+
+  code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+  code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: .12em .38em; font-size: .88em; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; overflow-x: auto; font-size: 14px; line-height: 1.6;
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+
+  .note {
+    border-left: 3px solid var(--warn-border); background: var(--warn-bg);
+    border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 0 0 16px;
+  }
+  .note p { margin: 0; }
+  .note p + p { margin-top: 10px; }
+  .note strong { font-weight: 650; }
+
+  figure { margin: 0; }
+  figure img {
+    width: 100%; height: auto; display: block;
+    border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+  }
+  figcaption { color: var(--text-muted); font-size: 14px; margin-top: 10px; }
+
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+  footer { border-top: 1px solid var(--border); padding: 36px 0 56px; color: var(--text-muted); font-size: 15px; }
+  .support { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 16px 0 24px; }
+  .support img { border-radius: 8px; }
+
+  [data-lang-en], [data-lang-zh] { display: none; }
+  :root[lang="en"] [data-lang-en] { display: revert; }
+  :root[lang="zh-Hant"] [data-lang-zh] { display: revert; }
+  /* Block-level i18n wrappers must not collapse to inline. */
+  :root[lang="en"] p[data-lang-en], :root[lang="zh-Hant"] p[data-lang-zh] { display: block; }
+  :root[lang="en"] div[data-lang-en], :root[lang="zh-Hant"] div[data-lang-zh] { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <span class="brand">Obsidian Plugin Agent Kit</span>
+    <div class="toggles">
+      <button class="toggle" id="lang-toggle" type="button" aria-label="Switch language">中文</button>
+      <button class="toggle" id="theme-toggle" type="button" aria-label="Switch to dark mode">🌙 <span data-lang-en>Dark</span><span data-lang-zh>深色</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="hero">
+    <h1>
+      <span data-lang-en>Ship an Obsidian plugin your agent actually got right</span>
+      <span data-lang-zh>讓 AI 寫出的 Obsidian 外掛，真的過得了審查</span>
+    </h1>
+    <p class="tagline">
+      <span data-lang-en>Rules for building Obsidian plugins with a coding agent, plus a Claude Code skill that audits against them, fixes what it can, and drives a real Obsidian to check what static analysis cannot see.</span>
+      <span data-lang-zh>一套給 AI 遵循的 Obsidian 外掛開發規則，加上一個 Claude Code skill：依規則稽核、自動修正機械性問題，並實際驅動 Obsidian 驗證靜態分析看不到的東西。</span>
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/VaalRL/obsidian-plugin-agent-kit">
+        <span data-lang-en>View on GitHub</span><span data-lang-zh>前往 GitHub</span>
+      </a>
+      <a class="btn" href="#install">
+        <span data-lang-en>Install the skill</span><span data-lang-zh>安裝 skill</span>
+      </a>
+    </div>
+  </div>
+
+  <section id="why">
+    <h2><span data-lang-en>Why this exists</span><span data-lang-zh>為什麼需要這個</span></h2>
+    <p data-lang-en>A plugin can typecheck, lint clean, pass every test, and still ship a feature that has <strong>never once rendered</strong>.</p>
+    <p data-lang-zh>一個外掛可以型別檢查通過、lint 乾淨、測試全綠，同時帶著一個<strong>從來沒有顯示過</strong>的功能上架。</p>
+    <p data-lang-en>That happens when a guard tests an undocumented Obsidian internal that no longer exists. The block is skipped forever, silently, and a hand-written <code>.d.ts</code> keeps the compiler perfectly happy. No tool that reads source code will ever find it.</p>
+    <p data-lang-zh>當守衛條件檢查的是一個已經不存在的 Obsidian 內部屬性時就會這樣。那段程式永遠被跳過，不報錯，而手寫的 <code>.d.ts</code> 讓編譯器毫無怨言。任何只讀原始碼的工具都找不到它。</p>
+    <p data-lang-en>This kit covers both halves: the static audit, and actually running the thing.</p>
+    <p data-lang-zh>所以這套工具涵蓋兩半：靜態稽核，以及真的把它跑起來。</p>
+  </section>
+
+  <section id="contents">
+    <h2><span data-lang-en>What's inside</span><span data-lang-zh>內容</span></h2>
+    <div class="cards">
+      <div class="card">
+        <h3>📋 <span data-lang-en>Development rules</span><span data-lang-zh>開發規則</span></h3>
+        <p data-lang-en>Project structure, deprecated APIs and their replacements, security rules, lifecycle management, UI conventions, accessibility, and a submission checklist — written for an agent to follow while it codes.</p>
+        <p data-lang-zh>專案結構、已棄用 API 與替代方案、安全規則、生命週期管理、UI 慣例、無障礙要求，以及送審檢查清單 —— 寫給 AI 在編碼時遵循。</p>
+      </div>
+      <div class="card">
+        <h3>🔍 <span data-lang-en>Audit skill</span><span data-lang-zh>稽核 skill</span></h3>
+        <p data-lang-en>A Claude Code skill that greps the codebase against every rule, reports findings by severity, and auto-fixes the mechanical ones after you approve.</p>
+        <p data-lang-zh>一個 Claude Code skill，依每條規則掃描程式碼、按嚴重度分級回報，並在你同意後自動修正機械性問題。</p>
+      </div>
+      <div class="card">
+        <h3>🎬 <span data-lang-en>Demo capture</span><span data-lang-zh>Demo 錄製</span></h3>
+        <p data-lang-en>Scripts that drive a real Obsidian over the Electron debugging protocol, verify runtime behaviour, and turn UI states into README GIFs. Zero dependencies.</p>
+        <p data-lang-zh>透過 Electron 除錯協定驅動真實 Obsidian，驗證執行期行為，並把 UI 狀態做成 README 用的 GIF。零依賴。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="coverage">
+    <h2><span data-lang-en>What the audit checks</span><span data-lang-zh>稽核涵蓋範圍</span></h2>
+    <p class="lead">
+      <span data-lang-en>Findings are graded BLOCKER, MAJOR, MINOR, PERF and DEBT.</span>
+      <span data-lang-zh>findings 分為 BLOCKER、MAJOR、MINOR、PERF、DEBT 五級。</span>
+    </p>
+    <table>
+      <thead><tr>
+        <th><span data-lang-en>Area</span><span data-lang-zh>面向</span></th>
+        <th><span data-lang-en>Examples</span><span data-lang-zh>範例</span></th>
+      </tr></thead>
+      <tbody>
+        <tr><td><span data-lang-en>Manifest</span><span data-lang-zh>Manifest</span></td>
+            <td><code>id</code>/<code>name</code>/<code>description</code>, <code>minAppVersion</code>, <code>isDesktopOnly</code>, <code>versions.json</code></td></tr>
+        <tr><td><span data-lang-en>Security</span><span data-lang-zh>安全</span></td>
+            <td><code>innerHTML</code>, <code>eval</code>, <span data-lang-en>remote code</span><span data-lang-zh>遠端程式碼</span>, <code>fetch</code> → <code>requestUrl</code></td></tr>
+        <tr><td><span data-lang-en>API misuse</span><span data-lang-zh>API 誤用</span></td>
+            <td><code>process.platform</code>, <span data-lang-en>hardcoded</span><span data-lang-zh>寫死的</span> <code>.obsidian</code>, <code>instanceof</code>, <span data-lang-en>regex lookbehind</span><span data-lang-zh>正則後查</span></td></tr>
+        <tr><td><span data-lang-en>Lifecycle</span><span data-lang-zh>生命週期</span></td>
+            <td><span data-lang-en>Unregistered events and intervals, cleanup on unload</span><span data-lang-zh>未註冊的事件與計時器、unload 清理</span></td></tr>
+        <tr><td>UI/UX</td>
+            <td><span data-lang-en>Sentence case, inline styles, hardcoded colours, accessibility</span><span data-lang-zh>句首大寫、行內樣式、寫死顏色、無障礙</span></td></tr>
+        <tr><td><strong><span data-lang-en>Policy</span><span data-lang-zh>政策</span></strong></td>
+            <td><span data-lang-en>Installing dependencies, missing network and file-access disclosures</span><span data-lang-zh>安裝依賴、缺少網路與檔案存取揭露</span></td></tr>
+        <tr><td><strong><span data-lang-en>Runtime-only</span><span data-lang-zh>僅執行期</span></strong></td>
+            <td><span data-lang-en>Dead guards on internals, modal promises that never settle, DOM left behind on unload</span><span data-lang-zh>內部屬性的死守衛、永不 settle 的 modal promise、unload 後殘留的 DOM</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="demo">
+    <h2><span data-lang-en>Demos, captured from the real app</span><span data-lang-zh>從真實應用程式錄製的 Demo</span></h2>
+    <p data-lang-en>The capture scripts photograph one UI state at a time and give each its own duration, rather than recording video — so every state is held long enough to read, and the file stays small. The mouse cursor is composited afterwards, because screenshots taken this way contain no pointer.</p>
+    <p data-lang-zh>錄製腳本不是錄影，而是逐個 UI 狀態拍照、每格各自設定停留時間 —— 所以每個狀態都停得夠久看得懂，檔案也小得多。游標是事後合成上去的，因為這種方式擷取的截圖不含滑鼠指標。</p>
+    <figure>
+      <img src="images/share-a-note.gif" alt="A plugin's sharing flow captured frame by frame: command palette, confirmation dialog, then a live public link" loading="lazy" width="980" height="766">
+      <figcaption>
+        <span data-lang-en>Produced by these scripts, against a live tunnel — 8 frames, 11 seconds, 865 KB. From <a href="https://github.com/VaalRL/obsidian-note-wormhole">Note Wormhole</a>.</span>
+        <span data-lang-zh>由這些腳本對真實連線錄製 —— 8 格、11 秒、865 KB。出自 <a href="https://github.com/VaalRL/obsidian-note-wormhole">Note Wormhole</a>。</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <section id="gotchas">
+    <h2><span data-lang-en>Two things to know before you submit</span><span data-lang-zh>送審前必須知道的兩件事</span></h2>
+
+    <div class="note">
+      <p data-lang-en><strong>The submission process changed in 2026.</strong> Plugins are no longer submitted by opening a pull request against <code>obsidianmd/obsidian-releases</code> — that repository is now a read-only registry. Submission happens at <a href="https://community.obsidian.md">community.obsidian.md</a> with an Obsidian account linked to your GitHub account, and the directory reads <code>manifest.json</code> from your <strong>default branch HEAD</strong>. A lot of guidance still describes the old flow.</p>
+      <p data-lang-zh><strong>送審流程在 2026 年改了。</strong>外掛不再透過對 <code>obsidianmd/obsidian-releases</code> 開 pull request 送審 —— 那個 repo 現在是唯讀的登錄檔。改到 <a href="https://community.obsidian.md">community.obsidian.md</a>，用 Obsidian 帳號登入並連結 GitHub 帳號，而目錄讀取的是你<strong>預設分支 HEAD</strong> 的 <code>manifest.json</code>。網路上很多說明仍在講舊流程。</p>
+    </div>
+
+    <div class="note">
+      <p data-lang-en><strong>A plugin must not install its own dependencies.</strong> The developer policies forbid installing "themselves or their dependencies" — which includes downloading a helper binary or CLI at runtime. Pinning the version and verifying a checksum makes it <em>safe</em>, not <em>permitted</em>. Every comparable plugin currently listed (pandoc, ffmpeg, git) relies on a binary the user installed.</p>
+      <p data-lang-zh><strong>外掛不能自行安裝依賴。</strong>開發者政策禁止外掛安裝「自己或自己的依賴」—— 包含在執行期下載輔助執行檔或 CLI。釘版本、驗 checksum 只能讓它變得<em>安全</em>，不會讓它變得<em>被允許</em>。目前架上所有同類外掛（pandoc、ffmpeg、git）用的都是使用者自己安裝的執行檔。</p>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2><span data-lang-en>Install</span><span data-lang-zh>安裝</span></h2>
+    <p data-lang-en>Clone the repository and copy the skill into your skills directory:</p>
+    <p data-lang-zh>複製 repo，把 skill 放進你的 skills 目錄：</p>
+<pre><code>git clone https://github.com/VaalRL/obsidian-plugin-agent-kit.git
+cd obsidian-plugin-agent-kit
+
+# Personal — available in every project
+cp -r skills/audit-obsidian-plugin ~/.claude/skills/
+
+# Or per project
+cp -r skills/audit-obsidian-plugin .claude/skills/</code></pre>
+    <p data-lang-en>Then ask Claude to audit, review or check your plugin.</p>
+    <p data-lang-zh>然後請 Claude 稽核、審查或檢查你的外掛即可。</p>
+
+    <h3><span data-lang-en>Recording demos</span><span data-lang-zh>錄製 demo</span></h3>
+<pre><code>PLUGIN_DIR=/path/to/your/plugin node scripts/demo-capture/setup-demo.mjs</code></pre>
+    <p data-lang-en>It uses an isolated <code>--user-data-dir</code>, so your real vault list, plugins and settings are never touched. Needs Node 22+ and Python with Pillow — nothing else to install.</p>
+    <p data-lang-zh>使用隔離的 <code>--user-data-dir</code>，所以你真正的 vault 清單、外掛與設定完全不受影響。需要 Node 22+ 與裝有 Pillow 的 Python —— 其他什麼都不用裝。</p>
+  </section>
+
+  <section id="origin">
+    <h2><span data-lang-en>Where this came from</span><span data-lang-zh>這套東西的來源</span></h2>
+    <p data-lang-en>All of it was extracted from taking a real plugin — <a href="https://github.com/VaalRL/obsidian-note-wormhole">Note Wormhole</a> — through the Community directory review. The rules are the ones that actually came up. The audit checks the things that were actually wrong. The capture scripts are the ones that produced that plugin's README GIFs.</p>
+    <p data-lang-zh>全部萃取自帶著一個真實外掛 —— <a href="https://github.com/VaalRL/obsidian-note-wormhole">Note Wormhole</a> —— 走完 Community 目錄審查的過程。規則是實際遇到的那些，稽核檢查的是實際出錯的地方，錄製腳本就是產出那個外掛 README GIF 的同一套。</p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><span data-lang-en>Built by</span><span data-lang-zh>作者</span> <a href="https://github.com/VaalRL">VaalRL</a>.</p>
+    <p data-lang-en>If it saved you a review cycle:</p>
+    <p data-lang-zh>如果它幫你省下了一輪審查：</p>
+    <div class="support">
+      <a href="https://www.buymeacoffee.com/whoami885" target="_blank" rel="noopener noreferrer"
+         aria-label="Support the author on Buy Me A Coffee">
+        <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+             alt="Buy Me A Coffee" width="217" height="60" loading="lazy">
+      </a>
+    </div>
+    <p>
+      <span data-lang-en>MIT licensed. Rules current as of September 2026 — if something here looks stale, please <a href="https://github.com/VaalRL/obsidian-plugin-agent-kit/issues">open an issue</a>.</span>
+      <span data-lang-zh>MIT 授權。規則更新至 2026 年 9 月 —— 若發現內容過時，歡迎<a href="https://github.com/VaalRL/obsidian-plugin-agent-kit/issues">開 issue</a>。</span>
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var themeBtn = document.getElementById('theme-toggle');
+  var langBtn = document.getElementById('lang-toggle');
+
+  // Preferences are a per-visitor convenience; a blocked or private store must
+  // not stop the page working, so every access is guarded.
+  function remember(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) { /* not available */ }
+  }
+  function recall(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+
+  function applyTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    var dark = theme === 'dark';
+    themeBtn.firstChild.nodeValue = dark ? '☀️ ' : '🌙 ';
+    themeBtn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    var en = themeBtn.querySelector('[data-lang-en]');
+    var zh = themeBtn.querySelector('[data-lang-zh]');
+    if (en) en.textContent = dark ? 'Light' : 'Dark';
+    if (zh) zh.textContent = dark ? '淺色' : '深色';
+  }
+
+  function applyLang(lang) {
+    root.setAttribute('lang', lang);
+    // The button offers the other language, not the current one.
+    langBtn.textContent = lang === 'en' ? '中文' : 'English';
+    langBtn.setAttribute('aria-label',
+      lang === 'en' ? 'Switch to Traditional Chinese' : 'Switch to English');
+  }
+
+  // Defaults are light and English, per design — not the system preference.
+  applyTheme(recall('theme') === 'dark' ? 'dark' : 'light');
+  applyLang(recall('lang') === 'zh-Hant' ? 'zh-Hant' : 'en');
+
+  themeBtn.addEventListener('click', function () {
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    remember('theme', next);
+  });
+
+  langBtn.addEventListener('click', function () {
+    var next = root.getAttribute('lang') === 'en' ? 'zh-Hant' : 'en';
+    applyLang(next);
+    remember('lang', next);
+  });
+})();
+</script>
+</body>
+</html>
