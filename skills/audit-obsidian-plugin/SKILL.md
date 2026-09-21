@@ -93,9 +93,15 @@ Check, in this order:
    vault? Both are required by policy and the second is routinely missed.
 3. **Is the work on the default branch?** The directory reads `manifest.json` from the default
    branch HEAD.
-4. **Will `npm version` produce the right tag?** Check `npm config get tag-version-prefix`; it
+4. **Does anything call an API newer than `minAppVersion`?** This is the one *error* the scan
+   issues. Run `node scripts/check-api-versions.mjs <plugin-root>`.
+5. **Is `skipLibCheck` in `tsconfig.json`**, not only on the `tsc` command line? If it is missing,
+   an external type-aware lint sees `obsidian.d.ts` fail and reports a flood of phantom
+   `no-unsafe-*` warnings. Reproduce any such warnings locally before touching the code.
+6. **Is a lockfile committed**, and does CI use `npm ci`?
+7. **Will `npm version` produce the right tag?** Check `npm config get tag-version-prefix`; it
    must be empty, not `v`.
-5. **Has a credential ever been committed?** Scan the whole history, not the working tree.
+8. **Has a credential ever been committed?** Scan the whole history, not the working tree.
 
 Report what the user has to do themselves: the final submission is a web form behind an Obsidian
 account login and cannot be automated.

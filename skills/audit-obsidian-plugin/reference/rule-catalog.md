@@ -107,6 +107,8 @@ Each rule lists a grep pattern (ripgrep syntax, single line unless `multiline: t
 | UI-009 | Hardcoded color (`#[0-9a-f]{3,6}` in `.ts`) | MINOR | Use CSS variable: `var(--text-normal)`, `var(--background-modifier-border)`, etc. |
 | UI-010 | Interactive icon-only button without `aria-label` / `setTooltip` | MAJOR | Add label |
 | UI-011 | No `:focus-visible` rule in `styles.css` for custom interactive elements | MINOR | Add focus style |
+| UI-012 | `display: contents` in `styles.css` | MINOR | Obsidian's CSS lint flags it as only partially supported, and it has a history of dropping elements from the accessibility tree. It usually sits on a wrapper that exists only so its children join the parent grid — delete the wrapper and make them direct grid children |
+| UI-013 | Any browser feature newer than the declared `minAppVersion` supports | MINOR | The scan reports these with file:line |
 
 ## F. Memory & lifecycle (MAJOR / PERF)
 
@@ -237,6 +239,21 @@ indicator.
 
 ---
 
+## M. Build and release configuration (BLOCKER / MAJOR)
+
+Caught by the directory's scan, not by the code. See
+[submission-process.md](./submission-process.md) for the full report anatomy.
+
+| ID | Check | Severity |
+|---|---|---|
+| CFG-001 | No API newer than `manifest.json#minAppVersion` — run `scripts/check-api-versions.mjs` | **BLOCKER**, the one error the scan issues |
+| CFG-002 | `skipLibCheck` is in `tsconfig.json`, not only on the `tsc` command line. A type-aware lint reads the tsconfig; without it `obsidian.d.ts` fails its own typecheck and every Node-derived value degrades to `any`, producing a flood of phantom `no-unsafe-*` warnings | MAJOR |
+| CFG-003 | `"types": ["node"]` declared explicitly, and `lib`/`target` new enough for the installed `@types/node` | MAJOR |
+| CFG-004 | `npm run lint` includes the **type-aware** ruleset, so the project and the directory check the same thing | MAJOR |
+| CFG-005 | A lockfile is **committed**, and CI uses `npm ci` — several plugin templates gitignore `package-lock.json`, which makes the build unreproducible | MAJOR |
+| CFG-006 | Release workflow issues build provenance (`actions/attest-build-provenance`, needing `id-token: write` and `attestations: write`) | MINOR, and a future scorecard component |
+| CFG-007 | `npm config get tag-version-prefix` is empty, not `v` | BLOCKER at release time |
+
 ## L. Developer policy (BLOCKER — removal from the directory)
 
 Full text and precedent: [submission-process.md](./submission-process.md).
@@ -249,6 +266,8 @@ Full text and precedent: [submission-process.md](./submission-process.md).
 | POL-004 | No client-side telemetry; no ads outside the plugin's own UI; no obfuscated code |
 | POL-005 | Not a fork of another community plugin without the original author's publicly verifiable approval |
 | POL-006 | `fundingUrl` present only if donations are genuinely accepted |
+| POL-007 | Node imports are by name (`import { statSync } from "fs"`), not `* as fs`, so the reachable surface is legible — the scan flags filesystem, shell and clipboard use as capability warnings, and a narrow import is the honest answer |
+| POL-008 | Shell use is `execFile`-family, never `exec`, so no argument passes through a shell |
 
 ## Running the catalog
 

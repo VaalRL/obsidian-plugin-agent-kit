@@ -137,6 +137,100 @@ tell the user it is a real gamble and have the mitigations documented for the re
 
 ---
 
+## What the automated scan actually reports
+
+Verified against a real submission in September 2026. The report is grouped into sections, and
+only **Source code** produces errors that block listing — everything else is Warning or
+Recommendation, which feed the safety scorecard.
+
+Run [`scripts/check-api-versions.mjs`](../scripts/check-api-versions.mjs) before submitting; it
+reproduces the one finding that is an error.
+
+### Source code — the only section that blocks
+
+**`obsidianmd/no-unsupported-api`** — an API newer than the declared `minAppVersion`. This is an
+**Error**. `obsidian.d.ts` carries `@since` annotations, so it is entirely checkable in advance,
+and a real submission was rejected over `workspace.getLeafById` (`@since 1.5.1`) against a
+declared `1.5.0` — one patch release.
+
+> Matching `@since` by bare method name over-reports wildly. `get`, `filter`, `includes`, `map`,
+> `render`, `display` and friends all exist on Obsidian types *and* on things every codebase
+> uses; an early version of the checker confidently demanded 1.13.1 purely from `Array.filter`
+> and `Map.get`. And the same name often has several declarations with different `@since` —
+> `Menu.addItem` is ancient while something else called `addItem` is recent — so a name is only
+> provably unsupported when **every** declaration carrying it is too new.
+
+**The `@typescript-eslint/no-unsafe-*` flood is usually a tsconfig problem, not a code problem.**
+One submission drew ~150 of them across every file touching a Node API, plus
+`'error' type that acts as 'any'` on `Server` and `ChildProcess`. Running the same rules locally
+reproduced **one**.
+
+The cause: `skipLibCheck` was passed on the `tsc` command line but absent from `tsconfig.json`,
+and a type-aware lint reads the tsconfig. Without it `obsidian.d.ts` fails its own typecheck
+(`Menu`, `Modal` and `PopoverSuggest` each reported as incorrectly implementing `HistoryHandler`)
+and those upstream errors degrade type resolution until every Node-derived value arrives as `any`.
+
+Before rewriting any code in response to these, reproduce them locally with
+`parserOptions.project` pointed at the real tsconfig. If they do not reproduce, fix the project
+configuration instead: `skipLibCheck` in `tsconfig.json` where every tool sees it, an explicit
+`"types": ["node"]`, and `lib`/`target` new enough for the installed `@types/node`.
+
+Then fold the type-aware ruleset into `npm run lint` so the project and the directory check the
+same thing. Doing that on one plugin immediately surfaced two real defects the untyped lint could
+not see: `loadData()` returning `any` and being spread into the settings object — silently
+disabling type checking everywhere settings were read — and a template literal printing
+`code null`.
+
+### Behaviour — capability warnings, not defects
+
+`fs` use, `child_process` use and clipboard access are each flagged. They describe what the
+plugin *can* reach, and cannot be removed without removing the feature. Narrow them instead, and
+disclose them in the README:
+
+- Import by name (`import { statSync } from "fs"`) rather than `* as fs`, so the reachable
+  surface is legible at the top of the file.
+- Prefer the `execFile` family over `exec`: nothing goes through a shell.
+- Say plainly in the README what is read, what is written, and what never is.
+
+### CSS lint
+
+Browser features Obsidian only partially supports are flagged with file:line. `display: contents`
+is the common one, usually on a wrapper that exists only to let children join a parent grid —
+deleting the wrapper and making them direct grid children removes the feature and shortens the
+markup. It is worth doing on its own merits: `display: contents` has a history of dropping
+elements from the accessibility tree.
+
+### Build verification
+
+A **committed lockfile** is required for the build to be reproducible byte-for-byte.
+`package-lock.json` is gitignored by several popular plugin templates — check. Commit it, and
+switch CI to `npm ci`, because a lockfile the build ignores is decoration.
+
+### Releases — artifact attestations
+
+Recommended for the release assets, and named as a future component of the safety scorecard. In
+the release workflow:
+
+```yaml
+permissions:
+  contents: write
+  id-token: write        # both are required to issue an attestation
+  attestations: write
+
+# after the build, before creating the release
+- uses: actions/attest-build-provenance@v2
+  with:
+    subject-path: |
+      main.js
+      styles.css
+```
+
+Anyone can then run `gh attestation verify main.js --repo OWNER/REPO`.
+
+### Network requests
+
+Reports suspicious patterns. A plugin that makes no HTTP requests of its own passes trivially.
+
 ## Release mechanics that bite
 
 ### npm tags with a `v` prefix by default

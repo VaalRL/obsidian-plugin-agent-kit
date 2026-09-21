@@ -61,6 +61,27 @@ ask), **MINOR** (style), **PERF**, **DEBT**.
 | Performance | work while idle, full re-renders, N+1 over the vault |
 | **Policy** | installing dependencies, missing network and file-access disclosures |
 | **Runtime-only** | dead guards on internals, modal promises that never settle, DOM left behind on unload |
+| **Build config** | APIs newer than `minAppVersion`, missing `skipLibCheck`, uncommitted lockfile, release attestations |
+
+## Pre-empt the one error that blocks listing
+
+The directory's scan issues exactly one kind of **error**: calling an Obsidian API newer than the
+`minAppVersion` your manifest declares. Everything else is a warning or recommendation. It is
+fully checkable in advance, because `obsidian.d.ts` carries `@since` annotations:
+
+```bash
+node skills/audit-obsidian-plugin/scripts/check-api-versions.mjs /path/to/your/plugin
+```
+
+A real submission was rejected over `workspace.getLeafById` — `@since 1.5.1` against a declared
+`1.5.0`, one patch release.
+
+If the scan instead returns a hundred `@typescript-eslint/no-unsafe-*` warnings, **reproduce them
+locally before changing any code**. They are usually not about the code at all: `skipLibCheck`
+passed on the `tsc` command line but missing from `tsconfig.json` lets `obsidian.d.ts` fail its
+own typecheck, and every Node-derived value degrades to `any`.
+[`reference/submission-process.md`](skills/audit-obsidian-plugin/reference/submission-process.md)
+walks through the whole report section by section.
 
 ## Two things worth knowing before you submit
 

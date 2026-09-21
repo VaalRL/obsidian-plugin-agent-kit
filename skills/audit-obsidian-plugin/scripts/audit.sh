@@ -67,11 +67,7 @@ report MEM-002 MAJOR  '\b(setInterval|setTimeout)\s*\('
 report PERF-002 PERF  'JSON\.stringify\([^)]*,\s*null,\s*2\)'
 report PERF-003 PERF  'Promise\.all\s*\(\s*\w+\.map'
 
-# Buy Me A Coffee. Set FUNDING_HANDLE in the environment, or from identity.json.
-FUNDING_HANDLE="${FUNDING_HANDLE:-}"
-# With no funding handle configured these checks are meaningless, so skip them.
-if [ -z "$FUNDING_HANDLE" ]; then SKIP_BMC=1; fi
-AUTHOR_HANDLE="${AUTHOR_HANDLE:-}"
+# Buy Me A Coffee (canonical id: ${FUNDING_HANDLE})
 report BMC-004 BLOCKER 'http://(www\.|cdn\.|img\.)?buymeacoffee\.com' '*.{md,ts,json}'
 report BMC-007 BLOCKER 'buymeacoffee\.com/(?!${FUNDING_HANDLE}\b)[A-Za-z0-9_-]+' '*.{md,ts,json}'
 report BMC-008 MAJOR   'YOUR_BMC_ID|YOUR_USERNAME|<bmc-id>|example_user' '*.{md,ts,json}'
@@ -79,25 +75,25 @@ report BMC-010 BLOCKER 'innerHTML\s*=.*buymeacoffee' '*.ts'
 report BMC-011 BLOCKER "createEl\(\s*['\"]script['\"].*buymeacoffee" '*.ts'
 
 # Missing funding url (emit once if absent from manifest)
-if [ -f manifest.json ] && ! grep -q "$FUNDING_HANDLE" manifest.json 2>/dev/null; then
-  printf "BMC-001\tMINOR\tmanifest.json:1\tfundingUrl missing or does not reference \$FUNDING_HANDLE\n"
+if [ -f manifest.json ] && ! grep -q '${FUNDING_HANDLE}' manifest.json 2>/dev/null; then
+  printf "BMC-001\tMINOR\tmanifest.json:1\tfundingUrl missing or does not reference ${FUNDING_HANDLE}\n"
 fi
 
-# Author identity — the author handle is NOT the funding handle.
+# Author identity — canonical author is ${AUTHOR_HANDLE}, NOT the BMC id ${FUNDING_HANDLE}.
 # MAN-022: BMC id leaked into author/authorUrl field.
 if [ -f manifest.json ]; then
-  if grep -Eq '"author"\s*:\s*"${FUNDING_HANDLE}"' manifest.json 2>/dev/null; then
+  if grep -Eq '"author"\s*:\s*"<FUNDING_HANDLE>"' manifest.json 2>/dev/null; then
     printf "MAN-022\tBLOCKER\tmanifest.json:1\tauthor is set to BMC id '${FUNDING_HANDLE}' — use '${AUTHOR_HANDLE}'\n"
   fi
   if grep -Eq '"authorUrl"\s*:\s*"[^"]*github\.com/${FUNDING_HANDLE}' manifest.json 2>/dev/null; then
-    printf "MAN-022\tBLOCKER\tmanifest.json:1\tauthorUrl points at github.com/${FUNDING_HANDLE} — use github.com/${AUTHOR_HANDLE}\n"
+    printf "MAN-022\tBLOCKER\tmanifest.json:1\tauthorUrl points at github.com/<FUNDING_HANDLE> — use github.com/${AUTHOR_HANDLE}\n"
   fi
   # MAN-018/019: author/authorUrl not set to canonical ${AUTHOR_HANDLE} values.
-  if ! grep -Eq '"author"\s*:\s*"${AUTHOR_HANDLE}"' manifest.json 2>/dev/null; then
+  if ! grep -Eq '"author"\s*:\s*"<AUTHOR_HANDLE>"' manifest.json 2>/dev/null; then
     printf "MAN-018\tMINOR\tmanifest.json:1\tauthor should be '${AUTHOR_HANDLE}'\n"
   fi
   if ! grep -Eq '"authorUrl"\s*:\s*"https://github\.com/${AUTHOR_HANDLE}"?' manifest.json 2>/dev/null; then
-    printf "MAN-019\tMINOR\tmanifest.json:1\tauthorUrl should be 'https://github.com/${AUTHOR_HANDLE}'\n"
+    printf "MAN-019\tMINOR\tmanifest.json:1\tauthorUrl should be 'https://github.com/<AUTHOR_HANDLE>'\n"
   fi
 fi
 
