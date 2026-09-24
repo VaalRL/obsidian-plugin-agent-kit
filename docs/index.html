@@ -245,7 +245,8 @@
     <p data-lang-en>The capture scripts photograph one UI state at a time and give each its own duration, rather than recording video — so every state is held long enough to read, and the file stays small. The mouse cursor is composited afterwards, because screenshots taken this way contain no pointer.</p>
     <p data-lang-zh>錄製腳本不是錄影，而是逐個 UI 狀態拍照、每格各自設定停留時間 —— 所以每個狀態都停得夠久看得懂，檔案也小得多。游標是事後合成上去的，因為這種方式擷取的截圖不含滑鼠指標。</p>
     <figure>
-      <img src="images/share-a-note.gif" alt="A plugin's sharing flow captured frame by frame: command palette, confirmation dialog, then a live public link" loading="lazy" width="980" height="766">
+      <img src="images/share-a-note.gif" alt="A plugin's sharing flow captured frame by frame: command palette, confirmation dialog, then a live public link"
+           data-zh-alt="逐格擷取的外掛分享流程：命令面板、確認對話框，接著是可公開存取的連結" loading="lazy" width="980" height="766">
       <figcaption>
         <span data-lang-en>Produced by these scripts, against a live tunnel — 8 frames, 11 seconds, 865 KB. From <a href="https://github.com/VaalRL/obsidian-note-wormhole">Note Wormhole</a>.</span>
         <span data-lang-zh>由這些腳本對真實連線錄製 —— 8 格、11 秒、865 KB。出自 <a href="https://github.com/VaalRL/obsidian-note-wormhole">Note Wormhole</a>。</span>
@@ -274,10 +275,10 @@
 <pre><code>git clone https://github.com/VaalRL/obsidian-plugin-agent-kit.git
 cd obsidian-plugin-agent-kit
 
-# Personal — available in every project
+# <span data-lang-en>Personal — available in every project</span><span data-lang-zh>個人層級 —— 所有專案都能用</span>
 cp -r skills/audit-obsidian-plugin ~/.claude/skills/
 
-# Or per project
+# <span data-lang-en>Or per project</span><span data-lang-zh>或只裝在單一專案</span>
 cp -r skills/audit-obsidian-plugin .claude/skills/</code></pre>
     <p data-lang-en>Then ask Claude to audit, review or check your plugin.</p>
     <p data-lang-zh>然後請 Claude 稽核、審查或檢查你的外掛即可。</p>
@@ -303,7 +304,8 @@ cp -r skills/audit-obsidian-plugin .claude/skills/</code></pre>
     <p data-lang-zh>如果它幫你省下了一輪審查：</p>
     <div class="support">
       <a href="https://www.buymeacoffee.com/whoami885" target="_blank" rel="noopener noreferrer"
-         aria-label="Support the author on Buy Me A Coffee">
+         aria-label="Support the author on Buy Me A Coffee"
+         data-zh-aria-label="透過 Buy Me A Coffee 支持作者">
         <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
              alt="Buy Me A Coffee" width="217" height="60" loading="lazy">
       </a>
@@ -334,19 +336,42 @@ cp -r skills/audit-obsidian-plugin .claude/skills/</code></pre>
     root.setAttribute('data-theme', theme);
     var dark = theme === 'dark';
     themeBtn.firstChild.nodeValue = dark ? '☀️ ' : '🌙 ';
-    themeBtn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
     var en = themeBtn.querySelector('[data-lang-en]');
     var zh = themeBtn.querySelector('[data-lang-zh]');
     if (en) en.textContent = dark ? 'Light' : 'Dark';
     if (zh) zh.textContent = dark ? '淺色' : '深色';
+    labelToggles();
+  }
+
+  // Accessible names follow the current language as well as the visible text.
+  function labelToggles() {
+    var zh = root.getAttribute('lang') === 'zh-Hant';
+    var dark = root.getAttribute('data-theme') === 'dark';
+    themeBtn.setAttribute('aria-label', zh
+      ? (dark ? '切換為淺色模式' : '切換為深色模式')
+      : (dark ? 'Switch to light mode' : 'Switch to dark mode'));
+    langBtn.setAttribute('aria-label', zh ? '切換為英文' : 'Switch to Traditional Chinese');
+  }
+
+  // Attributes cannot be switched by CSS, so alt text and aria-labels carry a
+  // data-zh-* copy and are swapped here; the English original is kept aside.
+  function translateAttributes(lang) {
+    ['alt', 'aria-label'].forEach(function (attr) {
+      var nodes = document.querySelectorAll('[data-zh-' + attr + ']');
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (!el.hasAttribute('data-en-' + attr)) el.setAttribute('data-en-' + attr, el.getAttribute(attr) || '');
+        el.setAttribute(attr, el.getAttribute((lang === 'en' ? 'data-en-' : 'data-zh-') + attr));
+      }
+    });
   }
 
   function applyLang(lang) {
     root.setAttribute('lang', lang);
     // The button offers the other language, not the current one.
     langBtn.textContent = lang === 'en' ? '中文' : 'English';
-    langBtn.setAttribute('aria-label',
-      lang === 'en' ? 'Switch to Traditional Chinese' : 'Switch to English');
+    translateAttributes(lang);
+    labelToggles();
   }
 
   // Defaults are light and English, per design — not the system preference.
