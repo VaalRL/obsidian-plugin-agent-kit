@@ -114,25 +114,24 @@ export function buildDemoVault() {
     }
 
     // --- Vault config -------------------------------------------------------
+    // Defaults only: a DEMO_VAULT_SOURCE that ships its own .obsidian/*.json keeps it
+    // (e.g. to enable the daily-notes core plugin for a plugin that writes to it).
     const configDir = path.join(VAULT, ".obsidian");
     mkdirSync(configDir, { recursive: true });
+    const writeDefault = (file, value) => {
+        const target = path.join(configDir, file);
+        if (!existsSync(target)) writeFileSync(target, JSON.stringify(value, null, 2));
+    };
 
-    writeFileSync(
-        path.join(configDir, "app.json"),
-        JSON.stringify({ promptDelete: false, alwaysUpdateLinks: true }, null, 2)
-    );
-    writeFileSync(
-        path.join(configDir, "appearance.json"),
-        JSON.stringify({ theme: "obsidian", baseFontSize: 17 }, null, 2)
-    );
-    writeFileSync(
-        path.join(configDir, "core-plugins.json"),
-        JSON.stringify(["file-explorer", "global-search", "switcher", "command-palette"], null, 2)
-    );
-    writeFileSync(
-        path.join(configDir, "community-plugins.json"),
-        JSON.stringify([PLUGIN_ID], null, 2)
-    );
+    writeDefault("app.json", { promptDelete: false, alwaysUpdateLinks: true });
+    writeDefault("appearance.json", { theme: "obsidian", baseFontSize: 17 });
+    writeDefault("core-plugins.json", ["file-explorer", "global-search", "switcher", "command-palette"]);
+
+    // The plugin under test is always enabled, whatever the source listed
+    const listFile = path.join(configDir, "community-plugins.json");
+    const enabled = existsSync(listFile) ? JSON.parse(readFileSync(listFile, "utf8")) : [];
+    if (!enabled.includes(PLUGIN_ID)) enabled.push(PLUGIN_ID);
+    writeFileSync(listFile, JSON.stringify(enabled, null, 2));
 
     // --- Install the plugin under test --------------------------------------
     const pluginDir = path.join(configDir, "plugins", PLUGIN_ID);
