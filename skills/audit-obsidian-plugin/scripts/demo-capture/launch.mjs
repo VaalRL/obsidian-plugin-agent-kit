@@ -17,13 +17,18 @@ export { WINDOW };
 /** The main workspace window (pop-outs and the settings window are separate targets). */
 const isMainWindow = (t) => t.type === "page" && t.url.startsWith("app://obsidian.md/index.html");
 
-export async function launchObsidian({ port = 9444, rebuildVault = true } = {}) {
+/**
+ * @param args  extra command-line switches for Obsidian, e.g. hostResolverRules()
+ *              from fixture-server.mjs. OBSIDIAN_ARGS adds more from the environment.
+ */
+export async function launchObsidian({ port = 9444, rebuildVault = true, args: extraArgs = [] } = {}) {
     if (!OBSIDIAN_EXE) throw new Error(obsidianNotFoundMessage());
     if (rebuildVault) buildDemoVault();
 
     const args = [`--remote-debugging-port=${port}`, `--user-data-dir=${USER_DATA}`, "--no-first-run"];
     // Chromium refuses to start as root without this (containers, CI runners)
     if (process.platform === "linux" && process.getuid?.() === 0) args.push("--no-sandbox");
+    args.push(...extraArgs);
     if (process.env.OBSIDIAN_ARGS) args.push(...process.env.OBSIDIAN_ARGS.split(" ").filter(Boolean));
 
     const xvfb = startVirtualDisplay();

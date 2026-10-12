@@ -9,7 +9,7 @@
 
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import path from "path";
-import { sleep } from "./cdp.mjs";
+import { CdpSession, listTargets, sleep } from "./cdp.mjs";
 
 export class Capture {
     constructor(session, { dir, width = 980, colors = 128 }) {
@@ -97,4 +97,149 @@ export async function openNote(session, basename, { preview = true } = {}) {
         ${preview ? `await leaf.setViewState({ type: 'markdown', state: { mode: 'preview', file: file.path } });` : ""}
     })()`);
     await sleep(1800);
+}
+
+// --- Real input -------------------------------------------------------------
+// Element.click() is enough for buttons, but menus, hover states, right-clicks
+// and text fields only behave as they do for a user when the input comes from
+// the browser itself. These dispatch it through CDP.
+
+/**
+ * Centre of the `index`-th visible element matching `selector`, optionally only
+ * those whose trimmed text equals `text`. Hidden copies (other tabs, collapsed
+ * panes) are skipped, which is what makes indexes stable.
+ */
+export async function pointOf(session, selector, { index = 0, text = null } = {}) {
+    const point = await session.evaluate(`(() => {
+        let els = [...document.querySelectorAll(${JSON.stringify(selector)})]
+            .filter((el) => el.getClientRects().length > 0);
+        const text = ${JSON.stringify(text)};
+        if (text !== null) els = els.filter((el) => el.textContent.trim() === text);
+        const el = els[${index}];
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+    })()`);
+    if (!point) throw new Error(`no visible element for ${selector}${text ? ` "${text}"` : ""} #${index}`);
+    return point;
+}
+
+/** Waits for an element to become visible and returns its centre. */
+export async function waitFor(session, selector, { text = null, index = 0, timeoutMs = 8000 } = {}) {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+        try {
+            return await pointOf(session, selector, { text, index });
+        } catch (error) {
+            if (Date.now() > deadline) throw error;
+            await sleep(150);
+        }
+    }
+}
+
+/** Polls an expression in the page until it is truthy, and returns its value. */
+export async function waitUntil(session, expression, { timeoutMs = 10000, intervalMs = 150 } = {}) {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+        const value = await session.evaluate(expression);
+        if (value) return value;
+        if (Date.now() > deadline) throw new Error(`timed out waiting for: ${expression}`);
+        await sleep(intervalMs);
+    }
+}
+
+export async function hover(session, point) {
+    await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
+}
+
+/** A real mouse click at a point. `button: "right"` opens context menus. */
+export async function mouseClick(session, point, { button = "left" } = {}) {
+    await hover(session, point);
+    await sleep(60);
+    const event = { x: point.x, y: point.y, button, clickCount: 1 };
+    await session.send("Input.dispatchMouseEvent", { type: "mousePressed", ...event });
+    await session.send("Input.dispatchMouseEvent", { type: "mouseReleased", ...event });
+}
+
+/** Types into the focused element as if from the keyboard (fires input events). */
+export async function typeText(session, text) {
+    await session.send("Input.insertText", { text });
+}
+
+/**
+ * Types `text` into the field at `selector` a few characters at a time, taking a
+ * frame after each step, so the GIF shows it being typed.
+ */
+export async function typeWithFrames(capture, selector, text, { step = 9, ms = 160, label = "typing" } = {}) {
+    const session = capture.session;
+    const at = await pointOf(session, selector);
+    await mouseClick(session, at);
+    for (let end = Math.min(step, text.length); ; end = Math.min(end + step, text.length)) {
+        await session.evaluate(`(() => {
+            const el = document.querySelector(${JSON.stringify(selector)});
+            el.value = "";
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+        })()`);
+        await typeText(session, text.slice(0, end));
+        if (end === text.length) break;
+        await capture.frame(`${label}-${end}`, ms, { cursor: at });
+    }
+    return at;
+}
+
+// --- Settings ---------------------------------------------------------------
+
+/**
+ * Opens Settings on the plugin's tab and returns a session for whichever page
+ * shows it, plus a close() for it.
+ *
+ * Older Obsidian builds draw Settings as a modal inside the main window. Newer
+ * ones (1.14+) open it in a window of its own, which CDP lists as a separate page
+ * target titled "Settings - ...": attach to that one to screenshot it. Obsidian may
+ * create that window ahead of time and only show it on open(), so the target can
+ * exist before Settings is opened; it is matched by title, not by being new. Either way
+ * the tab is selected by clicking its entry in the left column, as a user would.
+ *
+ * `tabName` is the plugin's display name (manifest.json `name`).
+ */
+export async function openPluginSettings(session, { port = 9444, tabName, timeoutMs = 10000 }) {
+    await session.evaluate(`(() => { app.setting.open(); })()`);
+
+    let target = session;
+    let ownWindow = false;
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+        const fresh = (await listTargets(port)).find(
+            (t) => t.type === "page" && t.title.startsWith("Settings")
+        );
+        if (fresh) {
+            target = await CdpSession.attach(fresh.webSocketDebuggerUrl);
+            await target.send("Page.enable");
+            await target.send("Runtime.enable");
+            await target.send("Emulation.setFocusEmulationEnabled", { enabled: true });
+            ownWindow = true;
+            break;
+        }
+        if (await session.evaluate(`!!document.querySelector(".modal.mod-settings")`)) break;
+        if (Date.now() > deadline) throw new Error("Settings never opened");
+        await sleep(200);
+    }
+
+    const nav = await waitFor(target, ".vertical-tab-nav-item", { text: tabName, timeoutMs });
+    await mouseClick(target, nav);
+    await waitFor(target, ".vertical-tab-content .setting-item", { timeoutMs });
+    await sleep(500);
+
+    return {
+        session: target,
+        async close() {
+            if (ownWindow) {
+                await target.evaluate(`window.close()`).catch(() => {});
+                target.close();
+            } else {
+                await session.evaluate(`app.setting.close()`);
+            }
+            await sleep(500);
+        }
+    };
 }
