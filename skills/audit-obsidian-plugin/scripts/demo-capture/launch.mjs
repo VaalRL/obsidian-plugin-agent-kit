@@ -6,7 +6,7 @@
  *   fixed window size       -> every GIF frame is the same dimensions
  */
 
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import { CdpSession, listTargets, sleep, waitForPort } from "./cdp.mjs";
 import {
     buildDemoVault, obsidianNotFoundMessage, OBSIDIAN_EXE, PLUGIN_ID, USER_DATA, VAULT, WINDOW
@@ -26,7 +26,10 @@ export async function launchObsidian({ port = 9444, rebuildVault = true } = {}) 
     if (process.platform === "linux" && process.getuid?.() === 0) args.push("--no-sandbox");
     if (process.env.OBSIDIAN_ARGS) args.push(...process.env.OBSIDIAN_ARGS.split(" ").filter(Boolean));
 
-    const child = spawn(OBSIDIAN_EXE, args, { stdio: "ignore", windowsHide: false });
+    const xvfb = startVirtualDisplay();
+    const env = xvfb ? { ...process.env, DISPLAY: xvfb.display } : process.env;
+    const child = spawn(OBSIDIAN_EXE, args, { stdio: "ignore", windowsHide: false, env });
+    child.xvfb = xvfb?.process ?? null;
 
     await waitForPort(port, 45000);
     let page = null;
@@ -172,10 +175,28 @@ async function trustAndWaitForPlugin(session, timeoutMs = 45000) {
     throw new Error(`${PLUGIN_ID} never finished loading (is it built, and is the id in manifest.json right?)`);
 }
 
+/**
+ * On Linux without a display (containers, CI, SSH), starts Xvfb so Obsidian has
+ * somewhere to draw. Screenshots come from the renderer, so nothing needs to be
+ * visible. Set DEMO_XVFB=0 to skip this and use DISPLAY as it is.
+ */
+function startVirtualDisplay() {
+    if (process.platform !== "linux" || process.env.DISPLAY || process.env.DEMO_XVFB === "0") return null;
+    if (spawnSync("which", ["Xvfb"]).status !== 0) {
+        throw new Error("No DISPLAY and no Xvfb. Install Xvfb (e.g. apt-get install xvfb) or set DISPLAY.");
+    }
+    const display = `:${process.env.DEMO_XVFB_DISPLAY ?? 99}`;
+    // A little larger than the window, so nothing is clipped at the screen edge
+    const screen = `${WINDOW.width + 64}x${WINDOW.height + 64}x24`;
+    const proc = spawn("Xvfb", [display, "-screen", "0", screen, "-nolisten", "tcp"], { stdio: "ignore" });
+    return { display, process: proc };
+}
+
 export async function shutdown(session, child) {
     session?.close();
     await sleep(400);
     child?.kill();
+    child?.xvfb?.kill();
     // On Windows the launcher process exits early and leaves the app running
     if (process.platform === "win32") {
         spawn("taskkill", ["/F", "/IM", "Obsidian.exe"], { stdio: "ignore" });

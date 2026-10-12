@@ -6,7 +6,7 @@
  * the demo vault. Their vault list, settings and plugins are untouched.
  */
 
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 
@@ -43,6 +43,7 @@ function findObsidian() {
             path.join(os.homedir(), "Applications/Obsidian.app/Contents/MacOS/Obsidian")
         ],
         linux: [
+            ...fetchedObsidian(),
             "/usr/bin/obsidian",
             "/opt/Obsidian/obsidian",
             "/snap/bin/obsidian",
@@ -54,10 +55,19 @@ function findObsidian() {
     return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
+/** Copies downloaded by fetch-obsidian.mjs, newest version first. */
+function fetchedObsidian() {
+    const dir = path.join(HERE, ".obsidian-app");
+    if (!existsSync(dir)) return [];
+    return readdirSync(dir)
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+        .map((version) => path.join(dir, version, "squashfs-root", "obsidian"));
+}
+
 /** Explains how to point the scripts at Obsidian when it was not found. */
 export function obsidianNotFoundMessage() {
     return "Obsidian was not found in its usual install locations. Set OBSIDIAN_EXE to the " +
-        "Obsidian executable (on Linux, the `obsidian` binary of an extracted AppImage works).";
+        "Obsidian executable. On Linux, `node fetch-obsidian.mjs` downloads one.";
 }
 
 const NOTE = process.env.DEMO_NOTE ?? `> [!info] Shared read-only
