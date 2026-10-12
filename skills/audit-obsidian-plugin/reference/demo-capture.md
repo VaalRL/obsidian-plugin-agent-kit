@@ -15,8 +15,10 @@ typechecked, because the plugin's own `types/index.ts` declared the property tha
 ## What you need
 
 Nothing installed beyond Obsidian itself, which the scripts look for in its usual place on
-Windows, macOS and Linux (set `OBSIDIAN_EXE` otherwise — on Linux the `obsidian` binary of an
-extracted AppImage works). Then:
+Windows, macOS and Linux (set `OBSIDIAN_EXE` otherwise). A Linux machine without Obsidian — a
+container, a CI runner, a cloud session — can get one with `node fetch-obsidian.mjs`, which
+downloads the AppImage and extracts it (no FUSE needed); the scripts find that copy on their own.
+Then:
 
 - **Node 22+** has a global `WebSocket`, so a Chrome DevTools Protocol client is ~100 lines with
   zero dependencies. No puppeteer.
@@ -41,6 +43,9 @@ Three details decide whether the demo vault actually opens:
 - **Fix the window size in `<user-data-dir>/<vault id>.json`** (`{"width":1180,"height":780,…}`).
   Obsidian applies it at startup; `Browser.setWindowBounds` is not available on every build.
 - **Running as root** (containers, CI) needs `--no-sandbox`, or Chromium refuses to start.
+
+Without a display (`DISPLAY` unset on Linux), `launch.mjs` starts `Xvfb` for the app to draw on.
+Screenshots come from the renderer, so nothing has to be visible to anyone.
 
 Then `GET http://127.0.0.1:<port>/json/list`, take the **main window** — the `page` target whose
 URL starts with `app://obsidian.md/index.html` (pop-outs and, in current versions, the settings
@@ -93,12 +98,68 @@ localStorage.setItem('language', 'en');   // then Page.reload, then re-assert fo
 object gives `Object reference chain is too long (-32000)`. Always end evaluated expressions with
 an explicit `return null` or a plain summary object.
 
-### What cannot be driven
+### Settings is a separate window
 
-`app.setting.open()` runs without error but never attaches its container to the DOM — no settings
-modal, no tabs, and force-attaching does not build the tab list either. Real window focus does not
-help. **Settings-tab screenshots have to be taken by hand.** Say so rather than shipping a stale
-one.
+In Obsidian 1.14 `app.setting.open()` opens Settings in **a window of its own**, which CDP lists
+as another `page` target titled `Settings - <vault> - Obsidian <version>`. Nothing appears in the
+main window's DOM, which is easy to mistake for "settings cannot be driven". Attach to that
+target and drive it like any other page. Obsidian may create the window ahead of time and only
+show it on `open()`, so match it **by title**, not by waiting for a new target. Older builds draw
+a `.modal.mod-settings` in the main window instead; `openPluginSettings()` in `capture-lib.mjs`
+handles both and selects the plugin's tab by clicking its entry, as a user would.
+
+### Real input, not `element.click()`
+
+`element.click()` is fine for buttons, but context menus, hover states and text fields only
+behave as they do for a user when the browser generates the events. Use
+`Input.dispatchMouseEvent` (with `button: "right"` for context menus) and `Input.insertText` for
+typing — `mouseClick`, `hover`, `typeText` and `typeWithFrames` in `capture-lib.mjs`. Always find
+the target by its **visible** bounding box: Obsidian keeps hidden copies of many views in the DOM,
+and the first match is often one of them.
+
+## Canned services instead of the network
+
+A plugin that fetches feeds, calls an API or plays media should be recorded against fixtures,
+not the live service: the demo is reproducible, shows exactly the content you chose, and leaks
+nothing. `fixture-server.mjs` serves files or generated responses, and `hostResolverRules()`
+produces a Chromium switch that sends made-up host names to it:
+
+```js
+const server = await startFixtureServer({ routes: { "/feed.xml": () => xml } });
+await launchObsidian({ args: [hostResolverRules(["podcast-demo.example"], server.port)] });
+```
+
+No hosts-file edit and no root. What was learned getting this right:
+
+- **Audio and video need HTTP Range.** Python's `http.server` and most quick static servers
+  answer with a plain 200. Chromium then plays the file but `seekable` is empty and every seek is
+  silently ignored, so "jump to 12:35" does nothing and nothing says why. The fixture server
+  answers ranges with 206.
+- **Use a host name, not `localhost`.** A plugin with SSRF protection (as it should have) refuses
+  `localhost` and private addresses, so pointing it at `127.0.0.1` tests the guard, not the
+  feature. Names under `.example` are reserved and never resolve to anything real.
+- **The mapping covers everything Chromium fetches**: `requestUrl`, `<img>`, `<audio>`. It does
+  not cover Node's own `http`/`https` modules, which a desktop plugin may use as a fallback.
+- **`fetch()` from the renderer fails on CORS** (the page's origin is `app://obsidian.md`) unless
+  the fixture sends CORS headers — the same thing the real service would have to do.
+- `silentWav(seconds)` stands in for an episode or a song: it has the advertised duration, plays,
+  seeks and downloads like the real thing, and needs no ffmpeg.
+
+## Containers and CI
+
+All of the above runs headless on Linux, as root, with no Obsidian preinstalled:
+
+```bash
+node fetch-obsidian.mjs                                   # once; cached in .obsidian-app/
+PLUGIN_DIR=/path/to/plugin node examples/podcasts/record.mjs
+```
+
+What it takes: Node 22+, Python with Pillow, `Xvfb`, and outbound access to GitHub for the one
+download. `curl` does that download because it honours `HTTPS_PROXY`, which Node's `fetch` does not
+before Node 24. Six GIFs for a real plugin take about two minutes end to end.
+
+`examples/podcasts/` is a complete worked example: fixtures, a demo vault with its own
+`.obsidian` config (daily notes enabled), a reset between scenes, and one function per GIF.
 
 ---
 
@@ -159,3 +220,16 @@ These all pass typecheck and lint, and all of them were real:
   immediately when there is nothing to poll.
 - **Rebuilding DOM on a timer** drops keyboard focus mid-interaction. Patch in place, and only
   when the value changed.
+- **A loading indicator left behind on the empty path.** A render function that adds a spinner,
+  then returns early with "No items yet", shows both at once. It can stay hidden for a long time
+  if the spinner's CSS is itself broken.
+- **Views that miss a bulk change.** "Delete all data" cleared the store, but the sidebar and the
+  player kept showing the old queue until some unrelated event redrew them. A bulk operation
+  needs an event that every open view listens to.
+- **Layout that breaks only with enough data.** A search field in a flex row without
+  `min-width: 0` cannot shrink, so the row overflows as soon as a long list adds a scrollbar.
+  Capture with realistic amounts of data, not one item.
+- **An internal scale leaking into the UI.** A speed slider stored as "rate × 100" displayed
+  `100` for 1.0×, because Obsidian shows the slider's raw value. Use the unit the user thinks in.
+- **Copy that only looks wrong on screen**: "1 episodes", a long title running off the panel
+  edge, Title Case where Obsidian uses sentence case.

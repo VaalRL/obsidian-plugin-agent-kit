@@ -115,14 +115,33 @@ touched. It runs on Windows, macOS and Linux; these environment variables adjust
 | --- | --- | --- |
 | `PLUGIN_DIR` | current directory | Plugin with a built `main.js`, `manifest.json`, `styles.css` |
 | `PLUGIN_ID` | `id` from `manifest.json` | Plugin to wait for after launch |
-| `OBSIDIAN_EXE` | the usual install location | Obsidian executable (an extracted AppImage's `obsidian` on Linux) |
+| `OBSIDIAN_EXE` | the usual install location, then `fetch-obsidian.mjs`'s copy | Obsidian executable |
 | `OBSIDIAN_ARGS` | — | Extra command-line switches for Obsidian |
 | `DEMO_VAULT_SOURCE` | built-in sample notes | Folder copied into the demo vault |
 | `DEMO_WIDTH`, `DEMO_HEIGHT` | `1180`, `780` | Window size, so every frame has the same dimensions |
 | `BROWSER_EXE` | Edge or Chrome | Browser for capturing a page as a visitor sees it (`browser.mjs`) |
+| `DEMO_XVFB` | on when `DISPLAY` is unset (Linux) | `0` skips starting `Xvfb` |
+| `OBSIDIAN_VERSION` | latest | Version `fetch-obsidian.mjs` downloads |
+
+It also runs headless — in a container, on a CI runner, in a cloud session. On Linux without
+Obsidian, `node scripts/demo-capture/fetch-obsidian.mjs` downloads and extracts the AppImage, and
+without a display the launcher starts `Xvfb` itself. Install `xvfb` and Pillow and that is all.
+
+Plugins that talk to the network are recorded against canned responses: `fixture-server.mjs`
+serves feeds, images and audio (with the HTTP Range support audio needs to seek), and points
+made-up host names at itself through a Chromium switch — no hosts file, no real service.
+`capture-lib.mjs` drives the UI with real mouse and keyboard events and opens a plugin's settings
+tab, including the separate Settings window of Obsidian 1.14+.
 
 Plugin-specific helpers belong next to your own scenes, as in
 [`scripts/demo-capture/examples/`](skills/audit-obsidian-plugin/scripts/demo-capture/examples/).
+[`examples/podcasts/`](skills/audit-obsidian-plugin/scripts/demo-capture/examples/podcasts/) is a
+complete one: fixtures, demo vault and six scenes that record the
+[Podcasts](https://github.com/VaalRL/obsidian-podcast) README GIFs in a single run:
+
+```bash
+PLUGIN_DIR=/path/to/obsidian-podcast node scripts/demo-capture/examples/podcasts/record.mjs
+```
 
 The one trap worth reading about first: Obsidian routes modals and notices through its own
 `activeWindow`/`activeDocument` globals for pop-out support. While the window is unfocused those
