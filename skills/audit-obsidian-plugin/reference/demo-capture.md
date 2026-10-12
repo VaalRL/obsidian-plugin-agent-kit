@@ -14,7 +14,9 @@ typechecked, because the plugin's own `types/index.ts` declared the property tha
 
 ## What you need
 
-Nothing installed. Obsidian is already on the machine, and:
+Nothing installed beyond Obsidian itself, which the scripts look for in its usual place on
+Windows, macOS and Linux (set `OBSIDIAN_EXE` otherwise — on Linux the `obsidian` binary of an
+extracted AppImage works). Then:
 
 - **Node 22+** has a global `WebSocket`, so a Chrome DevTools Protocol client is ~100 lines with
   zero dependencies. No puppeteer.
@@ -24,15 +26,25 @@ Nothing installed. Obsidian is already on the machine, and:
 ## Bringing Obsidian up
 
 ```bash
-Obsidian.exe --remote-debugging-port=9444 --user-data-dir=<throwaway>
+<obsidian> --remote-debugging-port=9444 --user-data-dir=<throwaway>
 ```
 
 `--user-data-dir` gives a completely isolated install: its own `obsidian.json` (write one listing
 only the demo vault), its own localStorage, its own settings. **The user's real vault list,
 plugins and settings are never touched.** Always use it.
 
-Then `GET http://127.0.0.1:<port>/json/list`, take the `page` target, and open its
-`webSocketDebuggerUrl`.
+Three details decide whether the demo vault actually opens:
+
+- **The vault path in `obsidian.json` must be in the platform's native form.** A Windows-style
+  `\tmp\demo` path on Linux does not fail loudly: Obsidian opens its vault picker
+  (`starter.html`) instead of the vault, and the plugin never loads.
+- **Fix the window size in `<user-data-dir>/<vault id>.json`** (`{"width":1180,"height":780,…}`).
+  Obsidian applies it at startup; `Browser.setWindowBounds` is not available on every build.
+- **Running as root** (containers, CI) needs `--no-sandbox`, or Chromium refuses to start.
+
+Then `GET http://127.0.0.1:<port>/json/list`, take the **main window** — the `page` target whose
+URL starts with `app://obsidian.md/index.html` (pop-outs and, in current versions, the settings
+window are separate targets) — and open its `webSocketDebuggerUrl`.
 
 ### Four things that will stop you
 

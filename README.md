@@ -109,7 +109,20 @@ PLUGIN_DIR=/path/to/your/plugin node scripts/demo-capture/setup-demo.mjs
 ```
 
 It uses an isolated `--user-data-dir`, so your real vault list, plugins and settings are never
-touched.
+touched. It runs on Windows, macOS and Linux; these environment variables adjust it:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PLUGIN_DIR` | current directory | Plugin with a built `main.js`, `manifest.json`, `styles.css` |
+| `PLUGIN_ID` | `id` from `manifest.json` | Plugin to wait for after launch |
+| `OBSIDIAN_EXE` | the usual install location | Obsidian executable (an extracted AppImage's `obsidian` on Linux) |
+| `OBSIDIAN_ARGS` | — | Extra command-line switches for Obsidian |
+| `DEMO_VAULT_SOURCE` | built-in sample notes | Folder copied into the demo vault |
+| `DEMO_WIDTH`, `DEMO_HEIGHT` | `1180`, `780` | Window size, so every frame has the same dimensions |
+| `BROWSER_EXE` | Edge or Chrome | Browser for capturing a page as a visitor sees it (`browser.mjs`) |
+
+Plugin-specific helpers belong next to your own scenes, as in
+[`scripts/demo-capture/examples/`](skills/audit-obsidian-plugin/scripts/demo-capture/examples/).
 
 The one trap worth reading about first: Obsidian routes modals and notices through its own
 `activeWindow`/`activeDocument` globals for pop-out support. While the window is unfocused those

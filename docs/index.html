@@ -287,6 +287,8 @@ cp -r skills/audit-obsidian-plugin .claude/skills/</code></pre>
 <pre><code>PLUGIN_DIR=/path/to/your/plugin node scripts/demo-capture/setup-demo.mjs</code></pre>
     <p data-lang-en>It uses an isolated <code>--user-data-dir</code>, so your real vault list, plugins and settings are never touched. Needs Node 22+ and Python with Pillow — nothing else to install.</p>
     <p data-lang-zh>使用隔離的 <code>--user-data-dir</code>，所以你真正的 vault 清單、外掛與設定完全不受影響。需要 Node 22+ 與裝有 Pillow 的 Python —— 其他什麼都不用裝。</p>
+    <p data-lang-en>Runs on Windows, macOS and Linux. Obsidian is found in its usual install location; set <code>OBSIDIAN_EXE</code> to point elsewhere (on Linux, the <code>obsidian</code> binary of an extracted AppImage works). The plugin id is read from <code>manifest.json</code>.</p>
+    <p data-lang-zh>可在 Windows、macOS 與 Linux 上執行。腳本會到常見的安裝位置尋找 Obsidian；裝在別處時設定 <code>OBSIDIAN_EXE</code> 即可（Linux 上可直接指向解開後 AppImage 裡的 <code>obsidian</code>）。外掛 id 會從 <code>manifest.json</code> 讀取。</p>
   </section>
 
   <section id="origin">

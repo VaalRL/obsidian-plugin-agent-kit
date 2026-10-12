@@ -7,23 +7,34 @@
  */
 
 import { spawn } from "child_process";
-import { CdpSession, sleep, waitForPort } from "./cdp.mjs";
-import { buildDemoVault, OBSIDIAN_EXE, USER_DATA, VAULT } from "./setup-demo.mjs";
+import { CdpSession, listTargets, sleep, waitForPort } from "./cdp.mjs";
+import {
+    buildDemoVault, obsidianNotFoundMessage, OBSIDIAN_EXE, PLUGIN_ID, USER_DATA, VAULT, WINDOW
+} from "./setup-demo.mjs";
 
-export const WINDOW = { width: 1180, height: 780 };
+export { WINDOW };
+
+/** The main workspace window (pop-outs and the settings window are separate targets). */
+const isMainWindow = (t) => t.type === "page" && t.url.startsWith("app://obsidian.md/index.html");
 
 export async function launchObsidian({ port = 9444, rebuildVault = true } = {}) {
+    if (!OBSIDIAN_EXE) throw new Error(obsidianNotFoundMessage());
     if (rebuildVault) buildDemoVault();
 
-    const child = spawn(
-        OBSIDIAN_EXE,
-        [`--remote-debugging-port=${port}`, `--user-data-dir=${USER_DATA}`, "--no-first-run"],
-        { stdio: "ignore", windowsHide: false }
-    );
+    const args = [`--remote-debugging-port=${port}`, `--user-data-dir=${USER_DATA}`, "--no-first-run"];
+    // Chromium refuses to start as root without this (containers, CI runners)
+    if (process.platform === "linux" && process.getuid?.() === 0) args.push("--no-sandbox");
+    if (process.env.OBSIDIAN_ARGS) args.push(...process.env.OBSIDIAN_ARGS.split(" ").filter(Boolean));
 
-    const targets = await waitForPort(port, 45000);
-    const page = targets.find((t) => t.type === "page");
-    if (!page) throw new Error("Obsidian exposed no page target");
+    const child = spawn(OBSIDIAN_EXE, args, { stdio: "ignore", windowsHide: false });
+
+    await waitForPort(port, 45000);
+    let page = null;
+    for (let i = 0; i < 60 && !page; i++) {
+        page = (await listTargets(port)).find(isMainWindow) ?? null;
+        if (!page) await sleep(500);
+    }
+    if (!page) throw new Error("Obsidian exposed no workspace page target");
 
     const session = await CdpSession.attach(page.webSocketDebuggerUrl);
     await session.send("Page.enable");
@@ -69,7 +80,8 @@ export async function launchObsidian({ port = 9444, rebuildVault = true } = {}) 
         });
         await sleep(800);
     } catch {
-        // Not fatal: the capture just uses whatever size the window came up at.
+        // Not exposed on every build. setup-demo.mjs also writes the size into the
+        // vault's window-state file, which Obsidian applies at startup.
     }
 
     await ensureActiveWindow(session);
@@ -135,18 +147,16 @@ async function trustAndWaitForPlugin(session, timeoutMs = 45000) {
     while (Date.now() < deadline) {
         const state = await session.evaluate(`(() => {
             const app = window.app;
-            const loaded = !!app?.plugins?.plugins?.['note-wormhole'];
+            const loaded = !!app?.plugins?.plugins?.[${JSON.stringify(PLUGIN_ID)}];
             return {
                 loaded,
-                commands: Object.keys(app?.commands?.commands ?? {})
-                    .filter(id => id.startsWith('note-wormhole')),
                 language: localStorage.getItem('language'),
                 trustButton: document.querySelector(${JSON.stringify(TRUST_BUTTON)})
                     ?.textContent?.trim() ?? null
             };
         })()`);
 
-        if (state.loaded && state.commands.length >= 2) {
+        if (state.loaded) {
             return { ...state, trusted };
         }
 
@@ -159,14 +169,17 @@ async function trustAndWaitForPlugin(session, timeoutMs = 45000) {
 
         await sleep(500);
     }
-    throw new Error("note-wormhole never finished loading");
+    throw new Error(`${PLUGIN_ID} never finished loading (is it built, and is the id in manifest.json right?)`);
 }
 
 export async function shutdown(session, child) {
     session?.close();
     await sleep(400);
     child?.kill();
-    spawn("taskkill", ["/F", "/IM", "Obsidian.exe"], { stdio: "ignore" });
+    // On Windows the launcher process exits early and leaves the app running
+    if (process.platform === "win32") {
+        spawn("taskkill", ["/F", "/IM", "Obsidian.exe"], { stdio: "ignore" });
+    }
     await sleep(1200);
 }
 
