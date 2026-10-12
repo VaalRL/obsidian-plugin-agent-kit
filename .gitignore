@@ -7,6 +7,8 @@ skills/audit-obsidian-plugin/scripts/demo-capture/obsidian-userdata/
 skills/audit-obsidian-plugin/scripts/demo-capture/frames*/
 skills/audit-obsidian-plugin/scripts/demo-capture/*.gif
 skills/audit-obsidian-plugin/scripts/demo-capture/*.png
+skills/audit-obsidian-plugin/scripts/demo-capture/.obsidian-app/
+skills/audit-obsidian-plugin/scripts/demo-capture/examples/*/out/
 
 .DS_Store
 Thumbs.db

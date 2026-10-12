@@ -6,30 +6,56 @@
  */
 
 import { spawn } from "child_process";
-import { rmSync } from "fs";
+import { existsSync, rmSync } from "fs";
 import path from "path";
 import { CdpSession, sleep, waitForPort } from "./cdp.mjs";
 
-const EDGE = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
 const HERE = import.meta.dirname;
+
+/** A Chromium-based browser for the visitor's side; BROWSER_EXE overrides the lookup. */
+function findBrowser() {
+    if (process.env.BROWSER_EXE) return process.env.BROWSER_EXE;
+    const candidates = {
+        win32: [
+            "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+            "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+            "C:/Program Files/Google/Chrome/Application/chrome.exe"
+        ],
+        darwin: [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium"
+        ],
+        linux: [
+            "/usr/bin/google-chrome",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/microsoft-edge"
+        ]
+    }[process.platform] ?? [];
+    const found = candidates.find((candidate) => existsSync(candidate));
+    if (!found) {
+        throw new Error(`No Chromium-based browser found (looked in: ${candidates.join(", ")}). Set BROWSER_EXE.`);
+    }
+    return found;
+}
 
 export async function launchBrowser({ port = 9470, url = "about:blank", width = 900, height = 620 } = {}) {
     const profile = path.join(HERE, `browser-profile-${port}`);
     rmSync(profile, { recursive: true, force: true });
 
-    const child = spawn(
-        EDGE,
-        [
-            `--remote-debugging-port=${port}`,
-            `--user-data-dir=${profile}`,
-            "--headless=new",
-            "--no-first-run",
-            "--hide-scrollbars",
-            `--window-size=${width},${height}`,
-            url
-        ],
-        { stdio: "ignore", windowsHide: true }
-    );
+    const args = [
+        `--remote-debugging-port=${port}`,
+        `--user-data-dir=${profile}`,
+        "--headless=new",
+        "--no-first-run",
+        "--hide-scrollbars",
+        `--window-size=${width},${height}`,
+        url
+    ];
+    // Chromium refuses to start as root without this (containers, CI runners)
+    if (process.platform === "linux" && process.getuid?.() === 0) args.unshift("--no-sandbox");
+    const child = spawn(findBrowser(), args, { stdio: "ignore", windowsHide: true });
 
     const targets = await waitForPort(port, 30000);
     const page = targets.find((t) => t.type === "page");

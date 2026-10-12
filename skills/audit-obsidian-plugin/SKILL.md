@@ -120,6 +120,11 @@ Capture one screenshot per UI state with its own duration rather than recording 
 composite the cursor afterwards — screenshots contain no pointer. Whatever the README asserts,
 measure it in the same run.
 
+This works in a container or cloud session too: `fetch-obsidian.mjs` gets Obsidian on Linux and
+the launcher starts `Xvfb` when there is no display. If the plugin uses the network, record
+against `fixture-server.mjs` rather than live services. `scripts/demo-capture/examples/podcasts/`
+is a complete run to copy from.
+
 ### Phase 3 — Report
 
 Write a concise Markdown report. Do NOT save it to disk unless the user asks. Structure:

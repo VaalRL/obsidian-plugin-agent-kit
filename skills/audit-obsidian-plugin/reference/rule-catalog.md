@@ -222,6 +222,10 @@ these passed a clean build in a real audit.
 | RT-004 | A polling timer that does full work while nothing is active | Return early when there is nothing to poll |
 | RT-005 | DOM rebuilt on a timer, dropping keyboard focus mid-interaction | Patch in place, and only when the value changed |
 | RT-006 | A README or checklist claim that has never been observed running | Measure it during the capture run, or record it as unverified |
+| RT-007 | A loading indicator is added, then an early return renders the empty state without removing it — both show at once | Clear the container before every render path, including the empty one |
+| RT-008 | A bulk operation (delete all data, import, restore) changes the store but open views keep showing the old state until an unrelated event redraws them | Trigger a workspace event after the operation and have every view re-render on it |
+| RT-009 | Layout that only breaks with realistic data: a flex child input without `min-width: 0` pushes its row out of the pane once a long list adds a scrollbar | Test with enough items to scroll; give shrinkable flex children `min-width: 0` |
+| RT-010 | An internal scale shown to the user — a slider stored as "rate × 100" displays `100` for 1.0×, since Obsidian shows the slider's raw value | Store and display the value in the unit the user thinks in |
 
 For the tab-header case specifically: current Obsidian exposes `tabHeaderEl`,
 `tabHeaderInnerIconEl`, `tabHeaderInnerTitleEl` and `tabHeaderStatusContainerEl`. There is **no**

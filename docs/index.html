@@ -204,8 +204,8 @@
       </div>
       <div class="card">
         <h3>🎬 <span data-lang-en>Demo capture</span><span data-lang-zh>Demo 錄製</span></h3>
-        <p data-lang-en>Scripts that drive a real Obsidian over the Electron debugging protocol, verify runtime behaviour, and turn UI states into README GIFs. Zero dependencies.</p>
-        <p data-lang-zh>透過 Electron 除錯協定驅動真實 Obsidian，驗證執行期行為，並把 UI 狀態做成 README 用的 GIF。零依賴。</p>
+        <p data-lang-en>Scripts that drive a real Obsidian over the Electron debugging protocol, verify runtime behaviour, and turn UI states into README GIFs. Zero dependencies; runs headless in CI.</p>
+        <p data-lang-zh>透過 Electron 除錯協定驅動真實 Obsidian，驗證執行期行為，並把 UI 狀態做成 README 用的 GIF。零依賴，也能在 CI 上無畫面執行。</p>
       </div>
     </div>
   </section>
@@ -287,6 +287,12 @@ cp -r skills/audit-obsidian-plugin .claude/skills/</code></pre>
 <pre><code>PLUGIN_DIR=/path/to/your/plugin node scripts/demo-capture/setup-demo.mjs</code></pre>
     <p data-lang-en>It uses an isolated <code>--user-data-dir</code>, so your real vault list, plugins and settings are never touched. Needs Node 22+ and Python with Pillow — nothing else to install.</p>
     <p data-lang-zh>使用隔離的 <code>--user-data-dir</code>，所以你真正的 vault 清單、外掛與設定完全不受影響。需要 Node 22+ 與裝有 Pillow 的 Python —— 其他什麼都不用裝。</p>
+    <p data-lang-en>Runs on Windows, macOS and Linux. Obsidian is found in its usual install location; set <code>OBSIDIAN_EXE</code> to point elsewhere (on Linux, the <code>obsidian</code> binary of an extracted AppImage works). The plugin id is read from <code>manifest.json</code>.</p>
+    <p data-lang-zh>可在 Windows、macOS 與 Linux 上執行。腳本會到常見的安裝位置尋找 Obsidian；裝在別處時設定 <code>OBSIDIAN_EXE</code> 即可（Linux 上可直接指向解開後 AppImage 裡的 <code>obsidian</code>）。外掛 id 會從 <code>manifest.json</code> 讀取。</p>
+    <p data-lang-en>It also runs headless — in a container, on a CI runner, in a cloud session. On Linux without Obsidian, <code>node scripts/demo-capture/fetch-obsidian.mjs</code> downloads and extracts the AppImage; without a display the launcher starts <code>Xvfb</code> itself.</p>
+    <p data-lang-zh>也能在沒有畫面的環境執行 —— 容器、CI runner、雲端工作階段。Linux 上沒裝 Obsidian 時，<code>node scripts/demo-capture/fetch-obsidian.mjs</code> 會下載並解開 AppImage；沒有顯示器時，啟動腳本會自己開 <code>Xvfb</code>。</p>
+    <p data-lang-en>Plugins that use the network are recorded against canned responses: <code>fixture-server.mjs</code> serves feeds, images and audio (with the HTTP Range support audio needs to seek) and points made-up host names at itself — no hosts file, no real service. <a href="https://github.com/VaalRL/obsidian-plugin-agent-kit/tree/main/skills/audit-obsidian-plugin/scripts/demo-capture/examples/podcasts"><code>examples/podcasts/</code></a> records a whole plugin's README GIFs in one run.</p>
+    <p data-lang-zh>會連網的外掛改用預先準備的回應錄製：<code>fixture-server.mjs</code> 提供 feed、圖片與音訊（含音訊拖曳進度所需的 HTTP Range 支援），並把虛構的主機名稱導向自己 —— 不用改 hosts 檔，也不碰真實服務。<a href="https://github.com/VaalRL/obsidian-plugin-agent-kit/tree/main/skills/audit-obsidian-plugin/scripts/demo-capture/examples/podcasts"><code>examples/podcasts/</code></a> 一次跑完就能錄好一個外掛 README 的所有 GIF。</p>
   </section>
 
   <section id="origin">
